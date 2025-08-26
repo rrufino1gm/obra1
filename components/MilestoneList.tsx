@@ -1,7 +1,7 @@
 
 import React from 'react';
-import type { Phase, Photo } from '../types';
-import PhaseCard from './PhaseCard';
+import type { Phase, Photo } from '../types.ts';
+import PhaseCard from './PhaseCard.tsx';
 
 interface MilestoneListProps {
     phases: Phase[];

@@ -1,6 +1,5 @@
-
 import React, { useEffect } from 'react';
-import type { Photo } from '../types';
+import type { Photo } from '../types.ts';
 
 interface ImageModalProps {
     photo: Photo;
@@ -29,7 +28,7 @@ const ImageModal: React.FC<ImageModalProps> = ({ photo, onClose }) => {
             >
                 <img src={photo.url} alt="Progress view" className="max-w-full max-h-[85vh] object-contain rounded mx-auto"/>
                 {photo.comment && (
-                    <div className="absolute bottom-2 left-2 right-2 md:bottom-4 md:left-4 md:right-4 bg-black bg-opacity-60 text-white p-3 rounded-b-lg">
+                    <div className="absolute bottom-2 left-2 right-2 md:bottom-4 md:left-4 md:right-4 bg-black bg-opacity-50 text-white p-3 rounded-b-lg">
                         <p className="text-sm">{photo.comment}</p>
                     </div>
                 )}

@@ -1,14 +1,15 @@
 
+
 import React, { useState, useMemo, useCallback } from 'react';
-import { PROJECT_DATA, CHART_DATA } from './constants';
-import type { Phase, Photo, ProjectDetails } from './types';
-import Header from './components/Header';
-import ProjectDetailsCard from './components/ProjectDetailsCard';
-import ProgressChart from './components/ProgressChart';
-import MilestoneList from './components/MilestoneList';
-import ImageModal from './components/ImageModal';
-import GoogleDriveModal from './components/GoogleDriveModal';
-import LoginModal from './components/LoginModal';
+import { PROJECT_DATA, CHART_DATA } from './constants.ts';
+import type { Phase, Photo, ProjectDetails } from './types.ts';
+import Header from './components/Header.tsx';
+import ProjectDetailsCard from './components/ProjectDetailsCard.tsx';
+import ProgressChart from './components/ProgressChart.tsx';
+import MilestoneList from './components/MilestoneList.tsx';
+import ImageModal from './components/ImageModal.tsx';
+import GoogleDriveModal from './components/GoogleDriveModal.tsx';
+import LoginModal from './components/LoginModal.tsx';
 
 const App: React.FC = () => {
     const [projectTitle, setProjectTitle] = useState<string>('Acompanhamento de Obra');
@@ -148,26 +149,35 @@ const App: React.FC = () => {
     }, [addLog]);
     
     const handlePhotoCommentChange = useCallback((phaseId: number, activityId: number, photoIndex: number, newComment: string) => {
-        setPhases(prevPhases =>
-            prevPhases.map(phase =>
+        setPhases(prevPhases => {
+            let activityName = '';
+            const newPhases = prevPhases.map(phase =>
                 phase.id === phaseId
                     ? {
                           ...phase,
-                          activities: phase.activities.map(activity =>
-                              activity.id === activityId
-                                  ? {
-                                        ...activity,
-                                        photos: activity.photos.map((photo, index) =>
-                                            index === photoIndex ? { ...photo, comment: newComment } : photo
-                                        ),
-                                    }
-                                  : activity
-                          ),
+                          activities: phase.activities.map(activity => {
+                              if (activity.id === activityId) {
+                                  activityName = activity.name;
+                                  return {
+                                      ...activity,
+                                      photos: activity.photos.map((photo, index) =>
+                                          index === photoIndex ? { ...photo, comment: newComment } : photo
+                                      ),
+                                  };
+                              }
+                              return activity;
+                          }),
                       }
                     : phase
-            )
-        );
-    }, []);
+            );
+            if (newComment.trim() !== '') {
+                addLog(`Comentário adicionado/alterado na foto da atividade "${activityName}".`);
+            } else {
+                addLog(`Comentário removido da foto da atividade "${activityName}".`);
+            }
+            return newPhases;
+        });
+    }, [addLog]);
     
     const handleSaveDriveConfig = useCallback((url: string) => {
         setDriveFolderUrl(url);
@@ -251,22 +261,20 @@ const App: React.FC = () => {
                             <button 
                                 onClick={handleClearLogs}
                                 className="text-sm bg-red-500 text-white py-1 px-3 rounded-lg hover:bg-red-600 transition-colors"
-                                aria-label="Limpar Logs"
-                            >
-                                <i className="fas fa-trash-alt mr-1"></i> Limpar Logs
+                                aria-label="Limpar log de alterações">
+                                Limpar Log
                             </button>
                         )}
                     </div>
-                    <div className="space-y-2 text-sm text-gray-600 max-h-40 overflow-y-auto pr-2">
-                        {logs.length > 0 ? logs.map((log, index) => (
-                            <p key={index} className="font-mono text-xs border-b border-gray-100 pb-1">{log}</p>
-                        )) : <p className="text-gray-500">Nenhuma alteração recente.</p>}
+                    <div className="bg-gray-100 p-4 rounded-lg h-40 overflow-y-auto font-mono text-sm text-gray-600">
+                        {logs.length > 0 ? (
+                            logs.map((log, index) => <div key={index}>{log}</div>)
+                        ) : (
+                            <p className="text-gray-400">Nenhuma alteração registrada ainda.</p>
+                        )}
                     </div>
                 </div>
             </div>
-             <footer className="text-center p-6 text-gray-500 text-sm">
-                <p>&copy; {new Date().getFullYear()} Construction Progress Tracker. All rights reserved.</p>
-            </footer>
         </div>
     );
 };

@@ -1,5 +1,5 @@
 
-import type { Phase } from './types';
+import type { Phase } from './types.ts';
 
 export const PROJECT_DATA: Phase[] = [
     {

@@ -1,5 +1,5 @@
 {
-  "name": "construction-progress-tracker",
+  "name": "construction-progress-tracker_v2",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "recharts": "^3.1.2"
+    "recharts": "2.12.3",
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

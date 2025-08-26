@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import type { ProjectDetails } from '../types';
+import type { ProjectDetails } from '../types.ts';
 
 interface ProjectDetailsCardProps {
     details: ProjectDetails;

@@ -1,6 +1,5 @@
-
 import React, { useRef } from 'react';
-import type { Activity, Photo } from '../types';
+import type { Activity, Photo } from '../types.ts';
 
 interface ActivityItemProps {
     activity: Activity;
@@ -87,7 +86,7 @@ const ActivityItem: React.FC<ActivityItemProps> = ({ activity, isEditMode, onTog
             {activity.photos.length > 0 && (
                 <div className="mt-4 pl-10">
                     <p className="text-sm font-medium text-gray-600 mb-2">Fotos do Progresso:</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
                         {activity.photos.map((photo, index) => (
                             <div key={index}>
                                 <div className="relative group">
@@ -97,25 +96,23 @@ const ActivityItem: React.FC<ActivityItemProps> = ({ activity, isEditMode, onTog
                                         className="w-full h-24 object-cover rounded-md cursor-pointer border-2 border-gray-200"
                                         onClick={() => onImageClick(photo)}
                                     />
-                                    <button 
-                                        onClick={() => onRemovePhoto(index)}
-                                        className="absolute top-0 right-0 m-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        aria-label="Remove photo"
-                                    >
-                                        <TrashIcon className="h-3 w-3" />
-                                    </button>
+                                    {isEditMode && (
+                                        <button 
+                                            onClick={() => onRemovePhoto(index)}
+                                            className="absolute top-0 right-0 m-1 bg-red-500 text-white rounded-full p-1 opacity-100 transition-opacity"
+                                            aria-label="Remove photo"
+                                        >
+                                            <TrashIcon className="h-3 w-3" />
+                                        </button>
+                                    )}
                                 </div>
-                                 {isEditMode ? (
-                                    <input
-                                        type="text"
-                                        placeholder="Adicionar comentário..."
-                                        value={photo.comment}
-                                        onChange={(e) => onPhotoCommentChange(index, e.target.value)}
-                                        className="w-full text-xs mt-1 p-1 border rounded"
-                                    />
-                                ) : (
-                                    photo.comment && <p className="text-xs text-gray-500 mt-1 p-1 truncate" title={photo.comment}>{photo.comment}</p>
-                                )}
+                                 <input
+                                    type="text"
+                                    placeholder="Adicionar comentário..."
+                                    value={photo.comment}
+                                    onChange={(e) => onPhotoCommentChange(index, e.target.value)}
+                                    className="w-full text-xs mt-1 p-1 border rounded"
+                                />
                             </div>
                         ))}
                     </div>

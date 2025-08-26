@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
-import type { Phase, Photo } from '../types';
-import ActivityItem from './ActivityItem';
+import type { Phase, Photo } from '../types.ts';
+import ActivityItem from './ActivityItem.tsx';
 
 interface PhaseCardProps {
     phase: Phase;
