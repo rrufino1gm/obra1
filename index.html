@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Construction Progress Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Dependencies for in-browser transpilation and execution -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "recharts": "https://aistudiocdn.com/recharts@^3.1.2"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-slate-100">
+    <div id="root"></div>
+
+    <!-- Consolidated Application Code -->
+    <script type="text/babel">
+// Make React, ReactDOM, and Recharts available from global scope
+const { useState, useEffect, useMemo, useCallback, useRef } = React;
+const { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } = Recharts;
+
+// --- Constants from constants.ts ---
+const PROJECT_DATA = [
+    {
+        id: 1,
+        name: "1. Início da Obra - Pag. Inicial",
+        percentageWeight: 10,
+        activities: [
+            { id: 1, name: "Limpeza", dueDate: "2025-09-21", completed: false, photos: [] },
+            { id: 2, name: "Barraco", dueDate: "2025-09-21", completed: false, photos: [] },
+            { id: 3, name: "Fundação", dueDate: "2025-10-21", completed: false, photos: [] },
+        ]
+    },
+    {
+        id: 2,
+        name: "2. Estrutura e Cobertura",
+        percentageWeight: 27,
+        activities: [
+            { id: 4, name: "Levantar parede", dueDate: "2025-12-20", completed: false, photos: [] },
+            { id: 5, name: "Laje", dueDate: "2025-12-20", completed: false, photos: [] },
+            { id: 6, name: "Telhado", dueDate: "2026-01-19", completed: false, photos: [] },
+        ]
+    },
+    {
+        id: 3,
+        name: "3. Rebocos e Instalações",
+        percentageWeight: 22,
+        activities: [
+            { id: 7, name: "Reboco", dueDate: "2026-03-20", completed: false, photos: [] },
+            { id: 8, name: "Elétrica", dueDate: "2026-03-20", completed: false, photos: [] },
+            { id: 9, name: "Hidráulica", dueDate: "2026-04-19", completed: false, photos: [] },
+            { id: 10, name: "Ar-condicionado", dueDate: "2026-04-19", completed: false, photos: [] },
+        ]
+    },
+    {
+        id: 4,
+        name: "4. Gesso e Pisos",
+        percentageWeight: 16,
+        activities: [
+            { id: 11, name: "Gesso", dueDate: "2026-06-18", completed: false, photos: [] },
+            { id: 12, name: "Forro", dueDate: "2026-06-18", completed: false, photos: [] },
+            { id: 13, name: "Piso", dueDate: "2026-07-18", completed: false, photos: [] },
+            { id: 14, name: "Acabamento", dueDate: "2026-07-18", completed: false, photos: [] },
+        ]
+    },
+    {
+        id: 5,
+        name: "5. Portas e Louças",
+        percentageWeight: 17,
+        activities: [
+            { id: 15, name: "Porta", dueDate: "2026-09-16", completed: false, photos: [] },
+            { id: 16, name: "Janela", dueDate: "2026-09-16", completed: false, photos: [] },
+            { id: 17, name: "Pias", dueDate: "2026-09-16", completed: false, photos: [] },
+            { id: 18, name: "Metais", dueDate: "2026-09-16", completed: false, photos: [] },
+            { id: 19, name: "Elétrica final", dueDate: "2026-09-16", completed: false, photos: [] },
+        ]
+    },
+    {
+        id: 6,
+        name: "6. Pintura e Entrega",
+        percentageWeight: 8,
+        activities: [
+            { id: 20, name: "Pintura interna e externa", dueDate: "2026-11-15", completed: false, photos: [] },
+            { id: 21, name: "Limpeza final", dueDate: "2026-11-15", completed: false, photos: [] },
+        ]
+    }
+];
+const CHART_DATA = [
+    { name: "1. Início Obra", value: 10, color: '#f87171' },
+    { name: "2. Estrutura e Cobertura", value: 27, color: '#fb923c' },
+    { name: "3. Rebocos e Instalações", value: 22, color: '#facc15' },
+    { name: "4. Gesso e Pisos", value: 16, color: '#4ade80' },
+    { name: "5. Portas e Louças", value: 17, color: '#60a5fa' },
+    { name: "6. Pintura e Entrega", value: 8, color: '#a78bfa' },
+];
+
+// --- Component: Header ---
+const Header = ({ projectTitle, onTitleChange, overallProgress, isEditMode, onToggleEditMode, onOpenDriveModal, driveFolderUrl }) => {
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [currentTitle, setCurrentTitle] = useState(projectTitle);
+    const isDriveConnected = driveFolderUrl.trim() !== '';
+
+    useEffect(() => {
+        setCurrentTitle(projectTitle);
+    }, [projectTitle]);
+
+    const handleTitleBlur = () => {
+        if (currentTitle.trim() === '') {
+            setCurrentTitle(projectTitle);
+        } else {
+            onTitleChange(currentTitle);
+        }
+        setIsEditingTitle(false);
+    };
+
+    const handleTitleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleTitleBlur();
+        } else if (e.key === 'Escape') {
+            setCurrentTitle(projectTitle);
+            setIsEditingTitle(false);
+        }
+    };
+
+    return (
+        <header className="bg-white shadow-md">
+            <div className="container mx-auto px-4 md:px-8 py-4">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div className="text-center md:text-left w-full md:w-auto">
+                        <div className="flex items-center gap-2 justify-center md:justify-start">
+                            {isEditingTitle && isEditMode ? (
+                                <input
+                                    type="text"
+                                    value={currentTitle}
+                                    onChange={(e) => setCurrentTitle(e.target.value)}
+                                    onBlur={handleTitleBlur}
+                                    onKeyDown={handleTitleKeyDown}
+                                    className="text-2xl md:text-3xl font-bold text-gray-800 bg-gray-100 border-b-2 border-blue-500 focus:outline-none"
+                                    autoFocus
+                                />
+                            ) : (
+                                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">{projectTitle}</h1>
+                            )}
+                            {isEditMode && !isEditingTitle && (
+                                <button onClick={() => setIsEditingTitle(true)} className="text-gray-400 hover:text-blue-600 transition-colors" aria-label="Edit project title">
+                                    <i className="fas fa-pencil-alt fa-xs"></i>
+                                </button>
+                            )}
+                        </div>
+                        <p className="text-gray-500">Relatório de Progresso Diário</p>
+                    </div>
+
+                    <div className="w-full md:w-auto flex flex-col items-center md:items-end gap-4">
+                         <div className="flex items-center space-x-4">
+                             <button 
+                                onClick={isEditMode ? onOpenDriveModal : undefined} 
+                                disabled={!isEditMode}
+                                className={`text-sm py-2 px-4 rounded-lg transition-colors flex items-center font-medium ${isDriveConnected ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'} ${isEditMode ? 'hover:bg-gray-300' : 'opacity-50 cursor-not-allowed'}`}
+                              >
+                                {isDriveConnected ? <i className="fas fa-check-circle mr-2"></i> : <i className="fab fa-google-drive mr-2"></i>}
+                                {isDriveConnected ? 'Google Drive Conectado' : 'Conectar Google Drive'}
+                            </button>
+                            <button onClick={onToggleEditMode} className={`text-sm py-2 px-4 rounded-lg transition-colors font-semibold ${isEditMode ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}>
+                               {isEditMode ? 'Sair do Modo Admin' : 'Modo Admin'}
+                            </button>
+                        </div>
+                        <div className="w-full md:w-80">
+                            <div className="flex items-center justify-center md:justify-end">
+                                <span className="text-lg font-semibold text-blue-600 mr-4">{overallProgress}%</span>
+                                <div className="w-full bg-gray-200 rounded-full h-4">
+                                    <div
+                                        className="bg-blue-600 h-4 rounded-full transition-all duration-500 ease-out"
+                                        style={{ width: `${overallProgress}%` }}
+                                    ></div>
+                                </div>
+                            </div>
+                            <p className="text-right text-sm text-gray-500 mt-1">Progresso Geral</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+    );
+};
+
+// --- Component: ProjectDetailsCard ---
+const DetailItem = ({ icon, label, value, isEditMode, onSave }) => {
+    const [inputValue, setInputValue] = useState(value);
+    const [isEditing, setIsEditing] = useState(false);
+
+    useEffect(() => {
+        setInputValue(value);
+        if (!isEditMode) {
+            setIsEditing(false);
+        }
+    }, [value, isEditMode]);
+
+    const handleSave = () => {
+        if (inputValue.trim() !== value) {
+            onSave(inputValue.trim());
+        }
+        setIsEditing(false);
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleSave();
+        } else if (e.key === 'Escape') {
+            setInputValue(value);
+            setIsEditing(false);
+        }
+    };
+
+    if (isEditMode) {
+        return (
+            <div className="flex items-center gap-3 py-1">
+                <i className={`${icon} text-blue-500 w-5 text-center`}></i>
+                <span className="font-semibold text-gray-600 w-20">{label}:</span>
+                {isEditing ? (
+                    <input
+                        type="text"
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onBlur={handleSave}
+                        onKeyDown={handleKeyDown}
+                        className="flex-1 p-1 bg-gray-100 border-b-2 border-blue-500 focus:outline-none"
+                        autoFocus
+                    />
+                ) : (
+                    <div className="flex-1 flex items-center justify-between group">
+                        <p className="text-gray-800">{value}</p>
+                        <button onClick={() => setIsEditing(true)} className="text-gray-400 hover:text-blue-600 ml-2 opacity-0 group-hover:opacity-100 transition-opacity" aria-label={`Edit ${label}`}>
+                            <i className="fas fa-pencil-alt fa-xs"></i>
+                        </button>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex items-center gap-3 py-1">
+            <i className={`${icon} text-blue-500 w-5 text-center`}></i>
+            <span className="font-semibold text-gray-600 w-20">{label}:</span>
+            <p className="text-gray-800">{value}</p>
+        </div>
+    );
+};
+const ProjectDetailsCard = ({ details, isEditMode, onDetailsChange }) => {
+    return (
+        <div className="bg-white p-6 rounded-xl shadow-lg mb-8">
+            <h2 className="text-xl font-bold text-gray-700 mb-4">
+                <i className="fas fa-info-circle mr-2"></i>Detalhes da Obra
+            </h2>
+            <div className="space-y-3">
+               <DetailItem
+                    icon="fas fa-map-marker-alt"
+                    label="Endereço"
+                    value={details.address}
+                    isEditMode={isEditMode}
+                    onSave={(newValue) => onDetailsChange('address', newValue)}
+                />
+                 <DetailItem
+                    icon="fas fa-user"
+                    label="Cliente"
+                    value={details.client}
+                    isEditMode={isEditMode}
+                    onSave={(newValue) => onDetailsChange('client', newValue)}
+                />
+            </div>
+        </div>
+    );
+};
+
+// --- Component: ProgressChart ---
+const ProgressChart = ({ data }) => {
+    return (
+        <div className="bg-white p-6 rounded-xl shadow-lg h-full flex flex-col">
+            <h2 className="text-xl font-bold text-gray-700 mb-4 text-center">Fases da Obra</h2>
+            <div className="w-full flex-grow h-80 lg:h-[350px]">
+                 <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                        <Pie
+                            data={data}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={100}
+                            fill="#8884d8"
+                            paddingAngle={5}
+                            dataKey="value"
+                            nameKey="name"
+                        >
+                            {data.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                        </Pie>
+                        <Tooltip formatter={(value, name) => [`${value}%`, name]} />
+                        <Legend iconType="circle" layout="vertical" verticalAlign="middle" align="right" 
+                          wrapperStyle={{ paddingLeft: '20px' }}
+                          formatter={(value, entry) => <span className="text-gray-600 text-sm md:text-base">{value}</span>}
+                        />
+                    </PieChart>
+                </ResponsiveContainer>
+            </div>
+        </div>
+    );
+};
+
+// --- Component: ActivityItem ---
+const CameraIcon = ({className}) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M4 4h3l2-2h6l2 2h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm8 14a5 5 0 1 0 0-10 5 5 0 0 0 0 10z" />
+        <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
+    </svg>
+);
+const TrashIcon = ({className}) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+    </svg>
+);
+const ActivityItem = ({ activity, isEditMode, onToggle, onAddPhoto, onRemovePhoto, onImageClick, onDateChange, onPhotoCommentChange }) => {
+    const fileInputRef = useRef(null);
+    const handleFileChange = (event) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                onAddPhoto(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+    const formatDate = (dateString) => {
+        const options = { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' };
+        return new Date(dateString).toLocaleDateString('pt-BR', options);
+    };
+    return (
+        <div className={`p-4 rounded-lg border-l-4 transition-colors duration-300 ${activity.completed ? 'bg-green-50 border-green-500' : 'bg-gray-50 border-gray-300'}`}>
+            <div className="flex flex-wrap items-center justify-between gap-y-3">
+                <div className="flex items-start">
+                    <input
+                        type="checkbox"
+                        checked={activity.completed}
+                        onChange={onToggle}
+                        className="h-6 w-6 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1 cursor-pointer flex-shrink-0"
+                    />
+                    <div className="ml-4">
+                        <p className={`font-semibold ${activity.completed ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
+                            {activity.name}
+                        </p>
+                        <div className="text-sm text-gray-500 flex items-center mt-1">
+                           <i className="far fa-calendar-alt mr-1.5"></i>
+                           {isEditMode ? (
+                               <input 
+                                   type="date"
+                                   value={activity.dueDate}
+                                   onChange={(e) => onDateChange(e.target.value)}
+                                   className="text-sm text-gray-600 bg-gray-100 border rounded p-1"
+                               />
+                           ) : (
+                               <span>Entrega: {formatDate(activity.dueDate)}</span>
+                           )}
+                        </div>
+                    </div>
+                </div>
+                <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center text-sm bg-blue-500 text-white py-2 px-3 rounded-lg hover:bg-blue-600 transition-colors duration-200"
+                >
+                    <CameraIcon className="h-4 w-4 mr-2" />
+                    <span>Foto</span>
+                </button>
+                <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+            </div>
+            {activity.photos.length > 0 && (
+                <div className="mt-4 pl-10">
+                    <p className="text-sm font-medium text-gray-600 mb-2">Fotos do Progresso:</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                        {activity.photos.map((photo, index) => (
+                            <div key={index}>
+                                <div className="relative group">
+                                    <img
+                                        src={photo.url}
+                                        alt={`Progress ${index + 1}`}
+                                        className="w-full h-24 object-cover rounded-md cursor-pointer border-2 border-gray-200"
+                                        onClick={() => onImageClick(photo)}
+                                    />
+                                    <button 
+                                        onClick={() => onRemovePhoto(index)}
+                                        className="absolute top-0 right-0 m-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        aria-label="Remove photo"
+                                    >
+                                        <TrashIcon className="h-3 w-3" />
+                                    </button>
+                                </div>
+                                 {isEditMode ? (
+                                    <input
+                                        type="text"
+                                        placeholder="Adicionar comentário..."
+                                        value={photo.comment}
+                                        onChange={(e) => onPhotoCommentChange(index, e.target.value)}
+                                        className="w-full text-xs mt-1 p-1 border rounded"
+                                    />
+                                ) : (
+                                    photo.comment && <p className="text-xs text-gray-500 mt-1 p-1 truncate" title={photo.comment}>{photo.comment}</p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// --- Component: PhaseCard ---
+const PhaseCard = ({ phase, onToggleActivity, onAddPhoto, onRemovePhoto, onImageClick, isEditMode, onDateChange, onPhotoCommentChange }) => {
+    const phaseProgress = useMemo(() => {
+        if (phase.activities.length === 0) return 0;
+        const completedCount = phase.activities.filter(a => a.completed).length;
+        return Math.round((completedCount / phase.activities.length) * 100);
+    }, [phase.activities]);
+    return (
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden transition-shadow duration-300 hover:shadow-xl">
+            <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-gray-800">{phase.name}</h3>
+                    <span className="text-md font-semibold text-blue-600">{phaseProgress}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5 mb-6">
+                    <div
+                        className="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${phaseProgress}%` }}
+                    ></div>
+                </div>
+                <div className="space-y-4">
+                    {phase.activities.map(activity => (
+                        <ActivityItem
+                            key={activity.id}
+                            activity={activity}
+                            isEditMode={isEditMode}
+                            onToggle={() => onToggleActivity(phase.id, activity.id)}
+                            onAddPhoto={(photo) => onAddPhoto(phase.id, activity.id, photo)}
+                            onRemovePhoto={(photoIndex) => onRemovePhoto(phase.id, activity.id, photoIndex)}
+                            onImageClick={onImageClick}
+                            onDateChange={(newDate) => onDateChange(phase.id, activity.id, newDate)}
+                            onPhotoCommentChange={(photoIndex, newComment) => onPhotoCommentChange(phase.id, activity.id, photoIndex, newComment)}
+                        />
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- Component: MilestoneList ---
+const MilestoneList = (props) => {
+    return (
+        <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-700 mb-4">Checklist de Atividades</h2>
+            {props.phases.map(phase => (
+                <PhaseCard
+                    key={phase.id}
+                    phase={phase}
+                    onToggleActivity={props.onToggleActivity}
+                    onAddPhoto={props.onAddPhoto}
+                    onRemovePhoto={props.onRemovePhoto}
+                    onImageClick={props.onImageClick}
+                    isEditMode={props.isEditMode}
+                    onDateChange={props.onDateChange}
+                    onPhotoCommentChange={props.onPhotoCommentChange}
+                />
+            ))}
+        </div>
+    );
+};
+
+// --- Component: ImageModal ---
+const ImageModal = ({ photo, onClose }) => {
+    useEffect(() => {
+        const handleEsc = (event) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, [onClose]);
+
+    return (
+        <div 
+            className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50 transition-opacity duration-300 p-4"
+            onClick={onClose}
+        >
+            <div 
+                className="relative bg-white p-2 md:p-4 rounded-lg shadow-2xl w-full max-w-4xl max-h-full"
+                onClick={e => e.stopPropagation()}
+            >
+                <img src={photo.url} alt="Progress view" className="max-w-full max-h-[85vh] object-contain rounded mx-auto"/>
+                {photo.comment && (
+                    <div className="absolute bottom-2 left-2 right-2 md:bottom-4 md:left-4 md:right-4 bg-black bg-opacity-60 text-white p-3 rounded-b-lg">
+                        <p className="text-sm">{photo.comment}</p>
+                    </div>
+                )}
+                <button
+                    onClick={onClose}
+                    className="absolute top-0 right-0 mt-2 mr-2 bg-gray-800 bg-opacity-50 text-white rounded-full h-8 w-8 flex items-center justify-center text-2xl shadow-lg hover:bg-gray-700 transition-colors z-10"
+                    aria-label="Close image view"
+                >
+                    &times;
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// --- Component: GoogleDriveModal ---
+const GoogleDriveModal = ({ currentUrl, onClose, onSave }) => {
+    const [url, setUrl] = useState(currentUrl);
+    useEffect(() => {
+        const handleEsc = (event) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, [onClose]);
+
+    const handleSave = () => {
+        if (url.trim()) {
+            onSave(url);
+        }
+    };
+
+    return (
+        <div 
+            className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4"
+            onClick={onClose}
+        >
+            <div 
+                className="relative bg-white p-6 rounded-lg shadow-xl w-full max-w-md"
+                onClick={e => e.stopPropagation()}
+            >
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Configurar Google Drive</h2>
+                <p className="text-gray-600 mb-4 text-sm">
+                    Cole a URL da pasta do Google Drive onde as fotos da obra devem ser armazenadas.
+                </p>
+                <div>
+                    <label htmlFor="driveUrl" className="block text-sm font-medium text-gray-700 mb-1">
+                        URL da Pasta
+                    </label>
+                    <input
+                        type="url"
+                        id="driveUrl"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        placeholder="https://drive.google.com/drive/folders/..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    />
+                </div>
+                <div className="mt-6 flex justify-end space-x-3">
+                    <button
+                        onClick={onClose}
+                        className="py-2 px-4 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        className="py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                        Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- Component: LoginModal ---
+const LoginModal = ({ onClose, onLoginSuccess }) => {
+    const CORRECT_PASSWORD = 'admin123';
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [showHint, setShowHint] = useState(false);
+
+    useEffect(() => {
+        const handleEsc = (event) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, [onClose]);
+
+    const handleLogin = () => {
+        if (password === CORRECT_PASSWORD) {
+            onLoginSuccess();
+        } else {
+            setError('Senha incorreta. Tente novamente.');
+            setPassword('');
+        }
+    };
+    
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            handleLogin();
+        }
+    };
+
+    return (
+        <div 
+            className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4"
+            onClick={onClose}
+        >
+            <div 
+                className="relative bg-white p-6 rounded-lg shadow-xl w-full max-w-sm"
+                onClick={e => e.stopPropagation()}
+            >
+                <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">Acesso Restrito</h2>
+                <p className="text-gray-600 mb-6 text-sm text-center">
+                    Por favor, insira a senha para ativar o Modo Admin.
+                </p>
+                <div>
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                        Senha
+                    </label>
+                    <input
+                        type="password"
+                        id="password"
+                        value={password}
+                        onChange={(e) => {
+                            setPassword(e.target.value);
+                            setError('');
+                            setShowHint(false);
+                        }}
+                        onKeyPress={handleKeyPress}
+                        className={`w-full px-3 py-2 border ${error ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500`}
+                        autoFocus
+                    />
+                     {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+                </div>
+                 <div className="text-xs text-right mt-2">
+                    <button onClick={() => setShowHint(true)} className="text-blue-600 hover:underline">
+                        Esqueceu a senha?
+                    </button>
+                </div>
+
+                {showHint && (
+                    <div className="mt-4 p-2 bg-blue-50 border border-blue-200 rounded-md text-center">
+                        <p className="text-sm text-blue-700">Dica: A senha padrão é `admin123`.</p>
+                    </div>
+                )}
+                
+                <div className="mt-6 flex flex-col sm:flex-row-reverse gap-3">
+                     <button
+                        onClick={handleLogin}
+                        className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                        Entrar
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="w-full py-2 px-4 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400"
+                    >
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- Main App Component ---
+const App = () => {
+    const [projectTitle, setProjectTitle] = useState('Acompanhamento de Obra');
+    const [projectDetails, setProjectDetails] = useState({
+        address: 'Rua Exemplo, 123, Bairro, Cidade-UF',
+        client: 'Nome do Cliente Final'
+    });
+    const [phases, setPhases] = useState(PROJECT_DATA);
+    const [modalPhoto, setModalPhoto] = useState(null);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [logs, setLogs] = useState([]);
+    const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
+    const [driveFolderUrl, setDriveFolderUrl] = useState('');
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+    const addLog = useCallback((message) => {
+        const timestamp = new Date().toLocaleString('pt-BR');
+        setLogs(prevLogs => [`[${timestamp}] ${message}`, ...prevLogs].slice(0, 10));
+    }, []);
+
+    const handleToggleEditMode = useCallback(() => {
+        if (isEditMode) {
+            setIsEditMode(false);
+            addLog('Modo Admin desativado.');
+        } else {
+            setIsLoginModalOpen(true);
+        }
+    }, [isEditMode, addLog]);
+    
+    const handleLoginSuccess = useCallback(() => {
+        setIsEditMode(true);
+        setIsLoginModalOpen(false);
+        addLog('Modo Admin ativado com sucesso.');
+    }, [addLog]);
+
+    const handleTitleChange = useCallback((newTitle) => {
+        setProjectTitle(newTitle);
+        addLog(`Título do projeto alterado para: "${newTitle}"`);
+    }, [addLog]);
+    
+    const handleDetailsChange = useCallback((field, value) => {
+        setProjectDetails(prevDetails => ({ ...prevDetails, [field]: value }));
+        const fieldName = field === 'address' ? 'Endereço' : 'Cliente';
+        addLog(`${fieldName} da obra alterado para: "${value}"`);
+    }, [addLog]);
+
+    const handleToggleActivity = useCallback((phaseId, activityId) => {
+        setPhases(prevPhases => {
+            let activityName = '';
+            const newPhases = prevPhases.map(phase =>
+                phase.id === phaseId
+                    ? {
+                          ...phase,
+                          activities: phase.activities.map(activity => {
+                              if (activity.id === activityId) {
+                                  activityName = activity.name;
+                                  return { ...activity, completed: !activity.completed };
+                              }
+                              return activity;
+                          }),
+                      }
+                    : phase
+            );
+            const status = newPhases.find(p => p.id === phaseId)?.activities.find(a => a.id === activityId)?.completed ? 'concluída' : 'pendente';
+            addLog(`Atividade "${activityName}" marcada como ${status}.`);
+            return newPhases;
+        });
+    }, [addLog]);
+
+    const handleAddPhoto = useCallback((phaseId, activityId, photoUrl) => {
+        setPhases(prevPhases => {
+             let activityName = '';
+             const newPhases = prevPhases.map(phase =>
+                phase.id === phaseId
+                    ? {
+                          ...phase,
+                          activities: phase.activities.map(activity => {
+                              if (activity.id === activityId) {
+                                  activityName = activity.name;
+                                  const newPhoto = { url: photoUrl, comment: '' };
+                                  return { ...activity, photos: [...activity.photos, newPhoto] };
+                              }
+                              return activity;
+                          }),
+                      }
+                    : phase
+            );
+            addLog(`Foto adicionada à atividade "${activityName}".`);
+            return newPhases;
+        });
+    }, [addLog]);
+    
+    const handleRemovePhoto = useCallback((phaseId, activityId, photoIndex) => {
+        setPhases(prevPhases => {
+            let activityName = '';
+            const newPhases = prevPhases.map(phase =>
+                phase.id === phaseId
+                    ? {
+                          ...phase,
+                          activities: phase.activities.map(activity => {
+                              if(activity.id === activityId) {
+                                activityName = activity.name;
+                                return { ...activity, photos: activity.photos.filter((_, index) => index !== photoIndex) };
+                              }
+                              return activity;
+                          }),
+                      }
+                    : phase
+            );
+            addLog(`Foto removida da atividade "${activityName}".`);
+            return newPhases;
+        });
+    }, [addLog]);
+    
+    const handleDateChange = useCallback((phaseId, activityId, newDate) => {
+        setPhases(prevPhases => {
+            let activityName = '';
+            const formattedDate = new Date(newDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+            const newPhases = prevPhases.map(phase =>
+                phase.id === phaseId
+                    ? {
+                          ...phase,
+                          activities: phase.activities.map(activity => {
+                              if (activity.id === activityId) {
+                                  activityName = activity.name;
+                                  return { ...activity, dueDate: newDate };
+                              }
+                              return activity;
+                          }),
+                      }
+                    : phase
+            );
+            addLog(`Data da atividade "${activityName}" alterada para ${formattedDate}.`);
+            return newPhases;
+        });
+    }, [addLog]);
+    
+    const handlePhotoCommentChange = useCallback((phaseId, activityId, photoIndex, newComment) => {
+        setPhases(prevPhases =>
+            prevPhases.map(phase =>
+                phase.id === phaseId
+                    ? {
+                          ...phase,
+                          activities: phase.activities.map(activity =>
+                              activity.id === activityId
+                                  ? {
+                                        ...activity,
+                                        photos: activity.photos.map((photo, index) =>
+                                            index === photoIndex ? { ...photo, comment: newComment } : photo
+                                        ),
+                                    }
+                                  : activity
+                          ),
+                      }
+                    : phase
+            )
+        );
+    }, []);
+    
+    const handleSaveDriveConfig = useCallback((url) => {
+        setDriveFolderUrl(url);
+        setIsDriveModalOpen(false);
+        addLog(`Pasta do Google Drive configurada: ${url}`);
+    }, [addLog]);
+
+    const handleClearLogs = useCallback(() => {
+        if (isEditMode) {
+            setLogs([]);
+            addLog('Log de alterações foi limpo.');
+        }
+    }, [isEditMode, addLog]);
+
+    const overallProgress = useMemo(() => {
+        const totalWeight = phases.reduce((sum, phase) => sum + phase.percentageWeight, 0);
+        const completedWeight = phases.reduce((sum, phase) => {
+            const completedActivities = phase.activities.filter(a => a.completed).length;
+            const phaseProgress = phase.activities.length > 0 ? (completedActivities / phase.activities.length) : 0;
+            return sum + (phaseProgress * phase.percentageWeight);
+        }, 0);
+        return totalWeight > 0 ? Math.round((completedWeight / totalWeight) * 100) : 0;
+    }, [phases]);
+
+    return (
+        <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
+            <Header 
+              projectTitle={projectTitle}
+              onTitleChange={handleTitleChange}
+              overallProgress={overallProgress}
+              isEditMode={isEditMode}
+              onToggleEditMode={handleToggleEditMode}
+              onOpenDriveModal={() => setIsDriveModalOpen(true)}
+              driveFolderUrl={driveFolderUrl}
+            />
+            <main className="container mx-auto p-4 md:p-8">
+                <ProjectDetailsCard 
+                    details={projectDetails}
+                    isEditMode={isEditMode}
+                    onDetailsChange={handleDetailsChange}
+                />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-1">
+                        <ProgressChart data={CHART_DATA} />
+                    </div>
+                    <div className="lg:col-span-2">
+                        <MilestoneList
+                            phases={phases}
+                            onToggleActivity={handleToggleActivity}
+                            onAddPhoto={handleAddPhoto}
+                            onRemovePhoto={handleRemovePhoto}
+                            onImageClick={setModalPhoto}
+                            isEditMode={isEditMode}
+                            onDateChange={handleDateChange}
+                            onPhotoCommentChange={handlePhotoCommentChange}
+                        />
+                    </div>
+                </div>
+            </main>
+            {modalPhoto && <ImageModal photo={modalPhoto} onClose={() => setModalPhoto(null)} />}
+            {isDriveModalOpen && isEditMode && (
+                <GoogleDriveModal 
+                    currentUrl={driveFolderUrl}
+                    onClose={() => setIsDriveModalOpen(false)}
+                    onSave={handleSaveDriveConfig}
+                />
+            )}
+            {isLoginModalOpen && (
+                <LoginModal 
+                    onClose={() => setIsLoginModalOpen(false)}
+                    onLoginSuccess={handleLoginSuccess}
+                />
+            )}
+             <div className="container mx-auto px-4 md:px-8 mt-4 mb-8">
+                <div className="bg-white p-6 rounded-xl shadow-lg">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-gray-700">
+                           <i className="fas fa-history mr-2"></i>Log de Alterações
+                        </h2>
+                        {isEditMode && (
+                            <button 
+                                onClick={handleClearLogs}
+                                className="text-sm bg-red-500 text-white py-1 px-3 rounded-lg hover:bg-red-600 transition-colors"
+                                aria-label="Limpar Logs"
+                            >
+                                <i className="fas fa-trash-alt mr-1"></i> Limpar Logs
+                            </button>
+                        )}
+                    </div>
+                    <div className="space-y-2 text-sm text-gray-600 max-h-40 overflow-y-auto pr-2">
+                        {logs.length > 0 ? logs.map((log, index) => (
+                            <p key={index} className="font-mono text-xs border-b border-gray-100 pb-1">{log}</p>
+                        )) : <p className="text-gray-500">Nenhuma alteração recente.</p>}
+                    </div>
+                </div>
+            </div>
+             <footer className="text-center p-6 text-gray-500 text-sm">
+                <p>&copy; {new Date().getFullYear()} Construction Progress Tracker. All rights reserved.</p>
+            </footer>
+        </div>
+    );
+};
+
+// --- Application Entry Point ---
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  throw new Error("Could not find root element to mount to");
+}
+const root = ReactDOM.createRoot(rootElement);
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+    </script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

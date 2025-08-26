@@ -1,0 +1,7 @@
+{
+  "name": "Construction Progress Tracker",
+  "description": "A web application for tracking the progress of a construction project. It allows builders to report daily progress with photos against a predefined schedule of milestones and activities.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
